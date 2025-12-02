@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include "flags.h"
@@ -18,6 +19,35 @@ void print_help(void) { printf("print help"); }
 void print_usage(void)
 {
     printf("Usage: pgcli -H [HOST] -u [USER] -d [DATABASE]\n");
+}
+
+char *prompt_password(char *user)
+{
+    printf("Password for %s: ", user);
+    fflush(stdout);
+
+    struct termios tty, original_tty;
+    tcgetattr(STDIN_FILENO, &original_tty);
+    tty = original_tty;
+
+    tty.c_lflag &= ~(ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+
+    char *password = NULL;
+    size_t len = 0;
+    getline(&password, &len, stdin);
+
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_tty);
+
+    printf("\n");
+
+    // remove trailing new line from password
+    if (password)
+    {
+        password[strcspn(password, "\n")] = '\0';
+    }
+
+    return password;
 }
 
 struct conn_info parse_flags(int argc, char **argv)
@@ -58,5 +88,8 @@ struct conn_info parse_flags(int argc, char **argv)
         }
     }
 
-    return (struct conn_info){.dbname = db_name, .user = user, .host = host};
+    char *password = prompt_password(user);
+
+    return (struct conn_info){
+        .dbname = db_name, .user = user, .host = host, .password = password};
 }

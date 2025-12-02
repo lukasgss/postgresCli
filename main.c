@@ -14,7 +14,7 @@ int main(int argc, char **argv)
     struct conn_info conn_info = parse_flags(argc, argv);
 
     PGconn *conn = connect_to_db(
-        conn_info.host, conn_info.dbname, conn_info.user, "123456");
+        conn_info.host, conn_info.dbname, conn_info.user, conn_info.password);
     char *input;
 
     init_readline();
