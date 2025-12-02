@@ -57,7 +57,7 @@ char *highlight(const char *input)
 
             bool contains_left_paren = false;
             bool contains_right_paren = false;
-            int len = 0;
+            size_t len = 0;
 
             while (*p && (isalnum(*p) || *p == '(' || *p == ')'))
             {
