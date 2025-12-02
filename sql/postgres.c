@@ -56,7 +56,7 @@ void execute_statement(PGconn *conn, char *statement)
     if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK)
     {
         fprintf(
-            stderr, "Failed to execute statement: %s", PQerrorMessage(conn));
+            stderr, "Failed to execute statement: %s\n", PQerrorMessage(conn));
         PQclear(result);
     }
 
@@ -81,5 +81,6 @@ void execute_statement(PGconn *conn, char *statement)
     }
 
     PQclear(result);
-    PQfinish(conn);
 }
+
+void terminate_connection(PGconn *conn) { PQfinish(conn); }
