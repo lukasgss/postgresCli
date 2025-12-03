@@ -1,8 +1,12 @@
+#include <bits/time.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <time.h>
 
 #include "libpq-fe.h"
+
+#define NANOSECONDS_PER_SEC 1000000000.0
 
 static void exit_gracefully(PGconn *conn)
 {
@@ -66,15 +70,43 @@ PGconn *connect_to_db(char *host, char *db, char *user, char *password)
     return conn;
 }
 
+static double measure_statement_exec_time_in_secs(
+    PGresult *(func)(PGconn *, char *), PGconn *conn, char *statement,
+    PGresult **result)
+{
+    struct timespec start, end;
+
+    clock_gettime(CLOCK_MONOTONIC, &start);
+
+    *result = func(conn, statement);
+
+    clock_gettime(CLOCK_MONOTONIC, &end);
+
+    return (end.tv_sec - start.tv_sec) +
+           (end.tv_nsec - start.tv_nsec) / NANOSECONDS_PER_SEC;
+}
+
+static inline PGresult *exec_to_db(PGconn *conn, char *statement)
+{
+    return PQexec(conn, statement);
+}
+
 void execute_statement(PGconn *conn, char *statement)
 {
-    PGresult *result = PQexec(conn, statement);
+    // can't create a value if not a pointer, since type
+    // isn't defined in the header file
+    PGresult *result = NULL;
+
+    double elapsed_time = measure_statement_exec_time_in_secs(
+        exec_to_db, conn, statement, &result);
+
     ExecStatusType status = PQresultStatus(result);
     if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK)
     {
         fprintf(
             stderr, "Failed to execute statement: %s\n", PQerrorMessage(conn));
         PQclear(result);
+        exit(EXIT_FAILURE);
     }
 
     int num_rows = PQntuples(result);
