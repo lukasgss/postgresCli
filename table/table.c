@@ -19,8 +19,8 @@ struct cols_data
 static struct cols_data get_total_width(struct print_table_info print_info)
 {
     struct cols_data cols_data = {.col_widths = NULL, .count = 0};
-    // TODO: resize dinamically
-    cols_data.col_widths = malloc(sizeof(unsigned long) * 10);
+    cols_data.col_widths =
+        malloc(sizeof(unsigned long) * print_info.amount_cols);
 
     for (int i = 0; i < print_info.amount_cols; i++)
     {
@@ -46,8 +46,7 @@ static struct cols_data get_total_width(struct print_table_info print_info)
 }
 
 void print_cols_header(
-    char **cols, int num_cols, struct cols_data columns_data,
-    unsigned long total_width)
+    char **cols, struct cols_data columns_data, unsigned long total_width)
 {
     char stack_buf[total_width <= STACK_THRESHOLD ? total_width + 1 : 1];
     char *line =
@@ -172,9 +171,10 @@ void draw_table(struct print_table_info print_info)
         total_width += columns_data.col_widths[i] - 1;
     }
 
-    print_cols_header(
-        print_info.cols, print_info.amount_cols, columns_data, total_width);
+    print_cols_header(print_info.cols, columns_data, total_width);
 
     print_rows(
         print_info.rows, print_info.amount_rows, columns_data, total_width);
+
+    free(columns_data.col_widths);
 }
