@@ -131,7 +131,12 @@ void execute_statement(PGconn *conn, char *statement)
     }
     printf("\n");
 
-    char *row_values[num_rows];
+    char ***row_values = malloc(sizeof(char **) * num_rows);
+    for (int row = 0; row < num_rows; row++)
+    {
+        row_values[row] = malloc(sizeof(char *) * num_cols);
+    }
+
     for (int row = 0; row < num_rows; row++)
     {
         for (int col = 0; col < num_cols; col++)
@@ -143,7 +148,7 @@ void execute_statement(PGconn *conn, char *statement)
                 biggest_str = str_len;
             }
 
-            row_values[row] = value;
+            row_values[row][col] = value;
             printf("%s\t", value);
         }
 

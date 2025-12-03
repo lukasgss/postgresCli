@@ -2,7 +2,7 @@
 
 struct print_table_info {
   char **cols;
-  char **rows;
+  char ***rows; // rows[row][col]
 
   int amount_cols;
   int amount_rows;
