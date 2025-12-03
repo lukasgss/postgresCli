@@ -1,5 +1,5 @@
 CC = gcc
-CFLAGS = -Wall -Wextra -g -I/usr/include/postgresql
+CFLAGS = -Wall -Wextra -g -I/usr/include/postgresql -I.
 LDFLAGS = -lpq -lreadline
 
 # Find all .c files in current dir and subdirs

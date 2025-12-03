@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "libpq-fe.h"
 
@@ -11,7 +12,7 @@ static void exit_gracefully(PGconn *conn)
 
 PGconn *connect_to_db(char *host, char *db, char *user, char *password)
 {
-    if (db == NULL || user == NULL)
+    if (user == NULL)
     {
         exit_gracefully(NULL);
     }
@@ -19,24 +20,40 @@ PGconn *connect_to_db(char *host, char *db, char *user, char *password)
     char conn_str[512];
     if (password == NULL)
     {
-        snprintf(
-            conn_str,
-            sizeof conn_str,
-            "host=%s dbname=%s user=%s",
-            host,
-            db,
-            user);
+        if (db == NULL || strcmp(db, "") == 0)
+        {
+            snprintf(
+                conn_str, sizeof conn_str, "dbname=%s user=%s", host, user);
+        }
+        else
+        {
+            snprintf(
+                conn_str,
+                sizeof conn_str,
+                "host=%s dbname=%s user=%s",
+                host,
+                db,
+                user);
+        }
     }
     else
     {
-        snprintf(
-            conn_str,
-            sizeof conn_str,
-            "host=%s dbname=%s user=%s password=%s",
-            host,
-            db,
-            user,
-            password);
+        if (db == NULL || strcmp(db, "") == 0)
+        {
+            snprintf(
+                conn_str, sizeof conn_str, "dbname=%s user=%s", host, user);
+        }
+        else
+        {
+            snprintf(
+                conn_str,
+                sizeof conn_str,
+                "host=%s dbname=%s user=%s password=%s",
+                host,
+                db,
+                user,
+                password);
+        }
     }
 
     PGconn *conn = PQconnectdb(conn_str);
@@ -65,7 +82,7 @@ void execute_statement(PGconn *conn, char *statement)
 
     for (int col = 0; col < num_cols; col++)
     {
-        printf("%s\t", PQfname(result, col));
+        printf("\n%s\t", PQfname(result, col));
     }
     printf("\n");
 

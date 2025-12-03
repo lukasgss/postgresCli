@@ -6,11 +6,30 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <termios.h>
+#include <unistd.h>
 
 #define C_STRING "\001\033[0;32m\002"  // green
 #define C_NUMBER "\001\033[0;33m\002"  // orange
 #define C_FUNCTION "\033[0;33m"        // yellow
 #define C_RESET "\001\033[0m\002"
+
+struct termios original_tty;
+
+void terminal_disable_echo(void)
+{
+    struct termios tty;
+    tcgetattr(STDIN_FILENO, &original_tty);
+    tty = original_tty;
+
+    tty.c_lflag &= ~(ECHO);
+    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+}
+
+void terminal_enable_echo(void)
+{
+    tcsetattr(STDIN_FILENO, TCSANOW, &original_tty);
+}
 
 char *highlight(const char *input)
 {

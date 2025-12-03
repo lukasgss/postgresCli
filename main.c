@@ -5,12 +5,16 @@
 #include <stdlib.h>
 #include <string.h>
 
+#include "flags/flags.h"
 #include "sql/postgres.h"
 #include "ui/terminal.h"
 
 int main(int argc, char **argv)
 {
-    PGconn *conn = connect_to_db("localhost", "rust_db", "postgres", "123456");
+    struct conn_info conn_info = parse_flags(argc, argv);
+
+    PGconn *conn = connect_to_db(
+        conn_info.host, conn_info.dbname, conn_info.user, conn_info.password);
     char *input;
 
     init_readline();
