@@ -6,6 +6,7 @@
 #include <unistd.h>
 
 #include "flags.h"
+#include "ui/terminal.h"
 
 static struct option long_options[] = {
     {"database", required_argument, 0, 'd'},
@@ -26,18 +27,13 @@ char *prompt_password(char *user)
     printf("Password for %s: ", user);
     fflush(stdout);
 
-    struct termios tty, original_tty;
-    tcgetattr(STDIN_FILENO, &original_tty);
-    tty = original_tty;
-
-    tty.c_lflag &= ~(ECHO);
-    tcsetattr(STDIN_FILENO, TCSANOW, &tty);
+    terminal_disable_echo();
 
     char *password = NULL;
     size_t len = 0;
     getline(&password, &len, stdin);
 
-    tcsetattr(STDIN_FILENO, TCSANOW, &original_tty);
+    terminal_enable_echo();
 
     printf("\n");
 
