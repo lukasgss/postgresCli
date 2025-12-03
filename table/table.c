@@ -30,16 +30,18 @@ static struct cols_data get_total_width(struct print_table_info print_info)
             }
         }
 
-        cols_data.col_widths[cols_data.count++] = biggest_len;
+        // adds the spacing of the value between the table lines
+        // and spaces (2 + 2)
+        cols_data.col_widths[cols_data.count++] = biggest_len + 4;
+
         biggest_len = 0;
     }
 
     return cols_data;
 }
 
-void print_cols_header(char *cols, int num_cols, struct cols_data columns_data)
+void print_cols_header(char **cols, int num_cols, struct cols_data columns_data)
 {
-    // adds the spacing of the value between the table lines
     for (int i = 0; i < columns_data.count; i++)
     {
         unsigned long curr_col_width = columns_data.col_widths[i];
@@ -59,11 +61,46 @@ void print_cols_header(char *cols, int num_cols, struct cols_data columns_data)
     }
 
     printf("\n");
+
+    for (int i = 0; i < columns_data.count; i++)
+    {
+        unsigned long curr_col_width = columns_data.col_widths[i];
+        char line[curr_col_width];
+
+        bool is_first_col = i == 0;
+
+        if (is_first_col)
+        {
+            line[0] = '|';
+            line[1] = ' ';
+        }
+        else
+        {
+            line[0] = ' ';
+        }
+
+        size_t text_len = strlen(cols[i]);
+        memcpy(&line[is_first_col ? 2 : 1], cols[i], curr_col_width);
+        if (text_len < curr_col_width)
+        {
+            memset(
+                &line[text_len + 1 + is_first_col],
+                ' ',
+                curr_col_width - (text_len + 1 + is_first_col));
+        }
+
+        line[curr_col_width - 2] = '|';
+        line[curr_col_width - 1] = '\0';
+
+        printf("%s", line);
+    }
+
+    printf("\n");
 }
 
 void draw_table(struct print_table_info print_info)
 {
     struct cols_data columns_data = get_total_width(print_info);
 
-    print_cols_header(*print_info.cols, print_info.amount_cols, columns_data);
+    print_cols_header(print_info.cols, print_info.amount_cols, columns_data);
 }
