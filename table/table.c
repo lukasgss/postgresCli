@@ -16,19 +16,20 @@ struct cols_data
     unsigned long *col_widths;
 };
 
-static struct cols_data get_total_width(struct print_table_info print_info)
+static struct cols_data get_total_width(
+    const struct print_table_info *print_info)
 {
     struct cols_data cols_data = {.col_widths = NULL, .count = 0};
     cols_data.col_widths =
-        malloc(sizeof(unsigned long) * print_info.amount_cols);
+        malloc(sizeof(unsigned long) * print_info->amount_cols);
 
-    for (int i = 0; i < print_info.amount_cols; i++)
+    for (int i = 0; i < print_info->amount_cols; i++)
     {
-        unsigned long biggest_len = strlen(print_info.cols[i]);
+        unsigned long biggest_len = strlen(print_info->cols[i]);
 
-        for (int j = 0; j < print_info.amount_rows; j++)
+        for (int j = 0; j < print_info->amount_rows; j++)
         {
-            unsigned long len = strlen(print_info.rows[j][i]);
+            unsigned long len = strlen(print_info->rows[j][i]);
 
             if (len > biggest_len)
             {
@@ -160,7 +161,7 @@ void print_rows(
     }
 }
 
-void draw_table(struct print_table_info print_info)
+void draw_table(const struct print_table_info *print_info)
 {
     struct cols_data columns_data = get_total_width(print_info);
 
@@ -171,10 +172,10 @@ void draw_table(struct print_table_info print_info)
         total_width += columns_data.col_widths[i] - 1;
     }
 
-    print_cols_header(print_info.cols, columns_data, total_width);
+    print_cols_header(print_info->cols, columns_data, total_width);
 
     print_rows(
-        print_info.rows, print_info.amount_rows, columns_data, total_width);
+        print_info->rows, print_info->amount_rows, columns_data, total_width);
 
     free(columns_data.col_widths);
 }

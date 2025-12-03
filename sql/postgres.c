@@ -162,7 +162,7 @@ void execute_statement(PGconn *conn, char *statement)
         }
     }
 
-    draw_table((struct print_table_info){
+    draw_table(&(struct print_table_info){
         .amount_cols = num_cols,
         .amount_rows = num_rows,
         .cols = col_values,

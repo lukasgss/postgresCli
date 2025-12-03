@@ -8,4 +8,4 @@ struct print_table_info {
   int amount_rows;
 };
 
-void draw_table(struct print_table_info print_info);
+void draw_table(const struct print_table_info *print_info);
