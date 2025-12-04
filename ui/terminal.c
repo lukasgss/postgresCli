@@ -11,6 +11,8 @@
 
 #include "ui/terminal.h"
 
+#define PROMPT_TEMPLATE_STR "%s@%s > "
+
 struct termios original_tty;
 
 void terminal_disable_echo(void)
@@ -184,3 +186,18 @@ void custom_display(void)
 }
 
 void init_readline(void) { rl_redisplay_function = custom_display; }
+
+char *get_readline_prompt(char *dbname, char *host)
+{
+    int len = snprintf(NULL, 0, PROMPT_TEMPLATE_STR, dbname, host) + 1;
+    char *readline_str = malloc(len * sizeof(char));
+    if (readline_str == NULL)
+    {
+        fprintf(stderr, "failed to allocate memory for readline string\n");
+        exit(EXIT_FAILURE);
+    }
+
+    snprintf(readline_str, len, PROMPT_TEMPLATE_STR, dbname, host);
+
+    return readline_str;
+}
