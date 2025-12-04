@@ -6,6 +6,7 @@
 #include <string.h>
 
 #include "table.h"
+#include "ui/terminal.h"
 
 #define STACK_THRESHOLD 1024
 #define SPACING_VALUES_BETWEEN_LINES 4
@@ -49,9 +50,24 @@ static struct cols_data get_total_width(
 void print_cols_header(
     char **cols, struct cols_data columns_data, unsigned long total_width)
 {
-    char stack_buf[total_width <= STACK_THRESHOLD ? total_width + 1 : 1];
+    /*
+    TODO: leaky abstraction. fix this in a way so that the
+    length is calculated without the caller knowing about
+    this overhead to highlight text
+     */
+    size_t ansi_overhead =
+        (strlen(C_GREEN) + strlen(C_RESET)) * columns_data.count;
+    unsigned long buffer_size = total_width + ansi_overhead + 1;
+
+    char stack_buf[buffer_size <= STACK_THRESHOLD ? buffer_size : 1];
     char *line =
-        total_width <= STACK_THRESHOLD ? stack_buf : malloc(total_width + 1);
+        buffer_size <= STACK_THRESHOLD ? stack_buf : malloc(buffer_size);
+
+    if (line == NULL && buffer_size > STACK_THRESHOLD)
+    {
+        fprintf(stderr, "failed to allocate buffer size to print columns\n");
+        return;
+    }
 
     // top border
     char *p = &line[0];
@@ -66,21 +82,32 @@ void print_cols_header(
     *p = '\0';
     puts(line);
 
-    // col names
+    // col names with highlighting
     p = &line[0];
     for (int i = 0; i < columns_data.count; i++)
     {
         unsigned long width = columns_data.col_widths[i];
-        size_t text_len = strlen(cols[i]);
-        size_t padding = width - SPACING_VALUES_BETWEEN_LINES - text_len;
+        char *highlighted_text = highlight_by_color(cols[i], HIGHLIGHT_GREEN);
+
+        if (highlighted_text == NULL)
+        {
+            continue;
+        }
+
+        size_t original_text_len = strlen(cols[i]);
+        size_t highlighted_len = strlen(highlighted_text);
+        size_t padding =
+            width - SPACING_VALUES_BETWEEN_LINES - original_text_len;
 
         *p++ = '|';
         *p++ = ' ';
-        memcpy(p, cols[i], text_len);
-        p += text_len;
+        memcpy(p, highlighted_text, highlighted_len);
+        p += highlighted_len;
         memset(p, ' ', padding);
         p += padding;
         *p++ = ' ';
+
+        free(highlighted_text);
     }
     *p++ = '|';
     *p = '\0';
@@ -99,7 +126,7 @@ void print_cols_header(
     *p = '\0';
     puts(line);
 
-    if (total_width > STACK_THRESHOLD)
+    if (buffer_size > STACK_THRESHOLD)
     {
         free(line);
     }
