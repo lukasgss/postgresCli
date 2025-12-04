@@ -19,7 +19,9 @@ int main(int argc, char **argv)
 
     init_readline();
 
-    while ((input = readline("rust_db@localhost > ")) != NULL)
+    char *readline_str = get_readline_prompt(conn_info.dbname, conn_info.host);
+
+    while ((input = readline(readline_str)) != NULL)
     {
         if (*input)
         {
@@ -33,6 +35,8 @@ int main(int argc, char **argv)
         }
         free(input);
     }
+
+    free(readline_str);
 
     terminate_connection(conn);
 
