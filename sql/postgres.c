@@ -1,10 +1,13 @@
 #include <bits/time.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <sys/cdefs.h>
 #include <time.h>
 
 #include "libpq-fe.h"
+#include "table/table.h"
 
 #define NANOSECONDS_PER_SEC 1000000000.0
 
@@ -91,6 +94,16 @@ static inline PGresult *exec_to_db(PGconn *conn, char *statement)
     return PQexec(conn, statement);
 }
 
+static __always_inline void free_results(char ***row_values, int num_rows)
+{
+    for (int row = 0; row < num_rows; row++)
+    {
+        free(row_values[row]);
+    }
+
+    free(row_values);
+}
+
 void execute_statement(PGconn *conn, char *statement)
 {
     // can't create a value if not a pointer, since type
@@ -112,22 +125,52 @@ void execute_statement(PGconn *conn, char *statement)
     int num_rows = PQntuples(result);
     int num_cols = PQnfields(result);
 
+    unsigned long biggest_str = 0;
+    char *col_values[num_cols];
+
     for (int col = 0; col < num_cols; col++)
     {
-        printf("\n%s\t", PQfname(result, col));
+        char *value = PQfname(result, col);
+        unsigned long str_len = strlen(value);
+        if (str_len > biggest_str)
+        {
+            biggest_str = str_len;
+        }
+
+        col_values[col] = value;
     }
     printf("\n");
+
+    char ***row_values = malloc(sizeof(char **) * num_rows);
+    for (int row = 0; row < num_rows; row++)
+    {
+        row_values[row] = malloc(sizeof(char *) * num_cols);
+    }
 
     for (int row = 0; row < num_rows; row++)
     {
         for (int col = 0; col < num_cols; col++)
         {
             char *value = PQgetvalue(result, row, col);
-            printf("%s\t", value);
-        }
+            unsigned long str_len = strlen(value);
+            if (str_len > biggest_str)
+            {
+                biggest_str = str_len;
+            }
 
-        printf("\n");
+            row_values[row][col] = value;
+        }
     }
+
+    draw_table(&(struct print_table_info){
+        .amount_cols = num_cols,
+        .amount_rows = num_rows,
+        .cols = col_values,
+        .rows = row_values});
+
+    printf("Time: %fs\n", elapsed_time);
+
+    free_results(row_values, num_rows);
 
     PQclear(result);
 }

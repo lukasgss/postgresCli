@@ -9,10 +9,7 @@
 #include <termios.h>
 #include <unistd.h>
 
-#define C_STRING "\001\033[0;32m\002"  // green
-#define C_NUMBER "\001\033[0;33m\002"  // orange
-#define C_FUNCTION "\033[0;33m"        // yellow
-#define C_RESET "\001\033[0m\002"
+#include "ui/terminal.h"
 
 struct termios original_tty;
 
@@ -29,6 +26,35 @@ void terminal_disable_echo(void)
 void terminal_enable_echo(void)
 {
     tcsetattr(STDIN_FILENO, TCSANOW, &original_tty);
+}
+
+char *highlight_by_color(const char *str, enum HIGHLIGHT_COLOR color)
+{
+    if (str == NULL)
+    {
+        return NULL;
+    }
+
+    size_t str_len = strlen(str);
+    size_t ansi_len = strlen(C_GREEN) + strlen(C_RESET);
+    char *formatted_str = malloc(str_len + ansi_len + 1);
+
+    if (formatted_str == NULL)
+    {
+        fprintf(stdout, "error allocating memory to highlight by color\n");
+        return NULL;
+    }
+
+    switch (color)
+    {
+        case HIGHLIGHT_GREEN:
+            sprintf(formatted_str, "%s%s%s", C_GREEN, str, C_RESET);
+            break;
+        default:
+            strcpy(formatted_str, str);
+    }
+
+    return formatted_str;
 }
 
 char *highlight(const char *input)
@@ -49,7 +75,7 @@ char *highlight(const char *input)
         if (*p == '\'' || *p == '"')
         {
             char quote = *p;
-            write_pos += sprintf(write_pos, "%s%c", C_STRING, *p++);
+            write_pos += sprintf(write_pos, "%s%c", C_GREEN, *p++);
 
             while (*p && *p != quote)
             {
@@ -158,29 +184,3 @@ void custom_display(void)
 }
 
 void init_readline(void) { rl_redisplay_function = custom_display; }
-
-char *read_line(char *database_name)
-{
-    char prompt[256];
-    snprintf(prompt, sizeof prompt, "%s> ", database_name);
-
-    char *input = readline(prompt);
-
-    if (input == NULL)
-    {
-        return NULL;
-    }
-
-    if (strcmp(input, "\\q") == 0)
-    {
-        free(input);
-        return NULL;
-    }
-
-    if (*input)
-    {
-        add_history(input);
-    }
-
-    return input;
-}
