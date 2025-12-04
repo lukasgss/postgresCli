@@ -116,10 +116,9 @@ void execute_statement(PGconn *conn, char *statement)
     ExecStatusType status = PQresultStatus(result);
     if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK)
     {
-        fprintf(
-            stderr, "Failed to execute statement: %s\n", PQerrorMessage(conn));
+        fprintf(stderr, "\n%s", PQerrorMessage(conn));
         PQclear(result);
-        exit(EXIT_FAILURE);
+        return;
     }
 
     int num_rows = PQntuples(result);

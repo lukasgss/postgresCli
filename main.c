@@ -23,6 +23,12 @@ int main(int argc, char **argv)
     {
         if (*input)
         {
+            if (strcmp(input, "\\q") == 0)
+            {
+                printf("\n");
+                break;
+            }
+
             execute_statement(conn, input);
         }
         free(input);
