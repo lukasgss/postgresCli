@@ -7,15 +7,10 @@
 #include <time.h>
 
 #include "libpq-fe.h"
+#include "postgres.h"
 #include "table/table.h"
 
 #define NANOSECONDS_PER_SEC 1000000000.0
-
-struct database_metadata
-{
-    char **tables;
-    size_t amount_tables;
-};
 
 static struct database_metadata db_metadata = {
     .amount_tables = 0, .tables = NULL};
@@ -113,7 +108,9 @@ static __always_inline void free_results(char ***row_values, int num_rows)
     free(row_values);
 }
 
-void get_db_metadata(PGconn *conn)
+struct database_metadata const *get_db_metadata(void) { return &db_metadata; }
+
+void fetch_db_metadata(PGconn *conn)
 {
     PGresult *result = exec_to_db(
         conn,
@@ -137,26 +134,34 @@ void get_db_metadata(PGconn *conn)
     }
 
     int num_fields = PQnfields(result);
+    int subtract_from_position = 0;
     for (int row = 0; row < num_rows; row++)
     {
         for (int col = 0; col < num_fields; col++)
         {
             char *value = PQgetvalue(result, row, col);
+            if (strcmp(value, "spatial_ref_sys") == 0)
+            {
+                subtract_from_position++;
+                continue;
+            }
+
             size_t table_name_len = strlen(value);
 
-            tables[row] = malloc(table_name_len * sizeof(char) + 1);
+            tables[row - subtract_from_position] =
+                malloc(table_name_len * sizeof(char) + 1);
 
-            tables[row] = value;
+            tables[row - subtract_from_position] = value;
         }
     }
 
-    db_metadata =
-        (struct database_metadata){.amount_tables = num_rows, .tables = tables};
+    db_metadata = (struct database_metadata){
+        .amount_tables = num_rows - subtract_from_position, .tables = tables};
 }
 
 void clear_db_metadata()
 {
-    for (int i = 0; i < db_metadata.amount_tables; i++)
+    for (size_t i = 0; i < db_metadata.amount_tables; i++)
     {
         free(db_metadata.tables[i]);
     }

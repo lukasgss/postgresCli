@@ -10,6 +10,7 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "sql/postgres.h"
 #include "ui/terminal.h"
 
 #define PROMPT_TEMPLATE_STR "%s@%s > "
@@ -196,6 +197,75 @@ char *highlight(const char *input)
     return buffer;
 }
 
+static char *get_word_before_current(const char *line, int cursor_pos)
+{
+    if (line == NULL || cursor_pos <= 0)
+    {
+        return NULL;
+    }
+
+    // skip back over the current incomplete word
+    int pos = cursor_pos - 1;
+    while (pos >= 0 && !isspace(line[pos]))
+    {
+        pos--;
+    }
+
+    // skip whitespace
+    while (pos >= 0 && isspace(line[pos]))
+    {
+        pos--;
+    }
+
+    if (pos < 0)
+    {
+        return NULL;
+    }
+
+    int end = pos;
+
+    // find the start of this word
+    while (pos >= 0 && !isspace(line[pos]))
+    {
+        pos--;
+    }
+
+    int start = pos + 1;
+    int word_len = end - start + 1;
+
+    if (word_len <= 0)
+    {
+        return NULL;
+    }
+
+    char *word = malloc(word_len + 1);
+    if (word == NULL)
+    {
+        fprintf(stderr, "error allocating memory for word\n");
+        return NULL;
+    }
+
+    strncpy(word, line + start, word_len);
+    word[word_len] = '\0';
+
+    return word;
+}
+
+static inline bool is_after_from()
+{
+    char *last_word = get_word_before_current(rl_line_buffer, rl_point);
+
+    if (last_word == NULL)
+    {
+        return false;
+    }
+
+    bool result = strcasecmp(last_word, "from") == 0;
+    free(last_word);
+
+    return result;
+}
+
 static char *get_suggestion(const char *text)
 {
     if (text == NULL || *text == '\0')
@@ -205,11 +275,28 @@ static char *get_suggestion(const char *text)
 
     int len = strlen(text);
 
-    for (int i = 0; vocabulary[i] != NULL; i++)
+    // suggest table names
+    if (is_after_from())
     {
-        if (strncasecmp(vocabulary[i], text, len) == 0)
+        const struct database_metadata *db_metadata = get_db_metadata();
+
+        for (size_t i = 0; i < db_metadata->amount_tables; i++)
         {
-            return vocabulary[i] + len;
+            if (strncasecmp(db_metadata->tables[i], text, len) == 0)
+            {
+                return db_metadata->tables[i] + len;
+            }
+        }
+    }
+    // suggest keywords
+    else
+    {
+        for (int i = 0; vocabulary[i] != NULL; i++)
+        {
+            if (strncasecmp(vocabulary[i], text, len) == 0)
+            {
+                return vocabulary[i] + len;
+            }
         }
     }
 
@@ -218,6 +305,10 @@ static char *get_suggestion(const char *text)
 
 static int accept_suggestion(int count, int key)
 {
+    // supress warnings
+    (void)count;
+    (void)key;
+
     char *line = rl_line_buffer;
     int cursor = rl_point;
 
@@ -288,19 +379,36 @@ void custom_display(void)
 char *command_generator(const char *text, int state)
 {
     static int list_index, len;
+    static bool checking_tables;
     char *name;
 
     if (!state)
     {
         list_index = 0;
         len = strlen(text);
+        checking_tables = is_after_from();
     }
 
-    while ((name = vocabulary[list_index++]))
+    if (checking_tables)
     {
-        if (strncasecmp(name, text, len) == 0)
+        const struct database_metadata *db_metadata = get_db_metadata();
+
+        while ((name = db_metadata->tables[list_index++]))
         {
-            return strdup(name);
+            if (strncasecmp(name, text, len) == 0)
+            {
+                return strdup(name);
+            }
+        }
+    }
+    else
+    {
+        while ((name = vocabulary[list_index++]))
+        {
+            if (strncasecmp(name, text, len) == 0)
+            {
+                return strdup(name);
+            }
         }
     }
 
@@ -309,6 +417,10 @@ char *command_generator(const char *text, int state)
 
 char **command_completion(const char *text, int start, int end)
 {
+    // supress warnings
+    (void)start;
+    (void)end;
+
     rl_attempted_completion_over = 1;
 
     return rl_completion_matches(text, command_generator);
@@ -319,7 +431,7 @@ void init_readline(void)
     rl_redisplay_function = custom_display;
     rl_attempted_completion_function = command_completion;
 
-    // right arrow
+    //            right arrow
     rl_bind_keyseq("\\e[C", accept_suggestion);
 }
 
