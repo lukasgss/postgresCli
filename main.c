@@ -32,6 +32,7 @@ int main(int argc, char **argv)
             }
 
             execute_statement(conn, input);
+            add_history(input);
         }
         free(input);
     }
