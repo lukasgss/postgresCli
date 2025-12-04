@@ -151,10 +151,24 @@ void print_rows(
             *p++ = '|';
             *p++ = ' ';
 
-            size_t text_len = strlen(rows[i][j]);
-            size_t padding = width - SPACING_VALUES_BETWEEN_LINES - text_len;
+            char *row_value = rows[i][j];
+            bool is_value_empty = row_value[0] == '\0';
 
-            memcpy(p, rows[i][j], text_len);
+            char *value_str = is_value_empty ? highlight_by_color(
+                                                   "<null>", HIGHLIGHT_DIM_GRAY)
+                                             : rows[i][j];
+
+            size_t text_len = strlen(value_str);
+
+            size_t original_text_len = strlen(row_value);
+
+            // 6 because it's the length of the "<null>" string,
+            // the strlen function is not used to improve performance
+            // and save a few ms :^)
+            size_t padding = width - SPACING_VALUES_BETWEEN_LINES -
+                             (is_value_empty ? 6 : original_text_len);
+
+            memcpy(p, value_str, text_len);
             p += text_len;
             memset(p, ' ', padding);
             p += padding;

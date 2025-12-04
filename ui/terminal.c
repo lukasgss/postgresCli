@@ -6,6 +6,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <strings.h>
+#include <sys/cdefs.h>
 #include <termios.h>
 #include <unistd.h>
 
@@ -30,6 +31,27 @@ void terminal_enable_echo(void)
     tcsetattr(STDIN_FILENO, TCSANOW, &original_tty);
 }
 
+static __always_inline size_t
+get_ansi_length_by_color(enum HIGHLIGHT_COLOR color)
+{
+    size_t color_size;
+
+    switch (color)
+    {
+        case HIGHLIGHT_GREEN:
+            color_size = strlen(C_GREEN);
+            break;
+        case HIGHLIGHT_DIM_GRAY:
+            color_size = strlen(C_DIM_GRAY);
+            break;
+        default:
+            // biggest one
+            color_size = strlen(C_GREEN);
+    }
+
+    return color_size + strlen(C_RESET);
+}
+
 char *highlight_by_color(const char *str, enum HIGHLIGHT_COLOR color)
 {
     if (str == NULL)
@@ -38,7 +60,7 @@ char *highlight_by_color(const char *str, enum HIGHLIGHT_COLOR color)
     }
 
     size_t str_len = strlen(str);
-    size_t ansi_len = strlen(C_GREEN) + strlen(C_RESET);
+    size_t ansi_len = get_ansi_length_by_color(color);
     char *formatted_str = malloc(str_len + ansi_len + 1);
 
     if (formatted_str == NULL)
@@ -51,6 +73,9 @@ char *highlight_by_color(const char *str, enum HIGHLIGHT_COLOR color)
     {
         case HIGHLIGHT_GREEN:
             sprintf(formatted_str, "%s%s%s", C_GREEN, str, C_RESET);
+            break;
+        case HIGHLIGHT_DIM_GRAY:
+            sprintf(formatted_str, "%s%s%s", C_DIM_GRAY, str, C_RESET);
             break;
         default:
             strcpy(formatted_str, str);
