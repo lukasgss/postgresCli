@@ -11,6 +11,15 @@
 
 #define NANOSECONDS_PER_SEC 1000000000.0
 
+struct database_metadata
+{
+    char **tables;
+    size_t amount_tables;
+};
+
+static struct database_metadata db_metadata = {
+    .amount_tables = 0, .tables = NULL};
+
 static void exit_gracefully(PGconn *conn)
 {
     PQfinish(conn);
@@ -102,6 +111,57 @@ static __always_inline void free_results(char ***row_values, int num_rows)
     }
 
     free(row_values);
+}
+
+void get_db_metadata(PGconn *conn)
+{
+    PGresult *result = exec_to_db(
+        conn,
+        "SELECT table_name FROM information_schema.tables WHERE "
+        "table_schema='public' AND table_type='BASE TABLE';");
+
+    ExecStatusType status = PQresultStatus(result);
+    if (status != PGRES_TUPLES_OK)
+    {
+        fprintf(stderr, "%s\n", PQerrorMessage(conn));
+        PQclear(result);
+        return;
+    }
+
+    int num_rows = PQntuples(result);
+
+    char **tables = malloc(num_rows * sizeof(char *));
+    if (tables == NULL)
+    {
+        fprintf(stderr, "failed to allocate memory to fetch all tables\n");
+    }
+
+    int num_fields = PQnfields(result);
+    for (int row = 0; row < num_rows; row++)
+    {
+        for (int col = 0; col < num_fields; col++)
+        {
+            char *value = PQgetvalue(result, row, col);
+            size_t table_name_len = strlen(value);
+
+            tables[row] = malloc(table_name_len * sizeof(char) + 1);
+
+            tables[row] = value;
+        }
+    }
+
+    db_metadata =
+        (struct database_metadata){.amount_tables = num_rows, .tables = tables};
+}
+
+void clear_db_metadata()
+{
+    for (int i = 0; i < db_metadata.amount_tables; i++)
+    {
+        free(db_metadata.tables[i]);
+    }
+
+    free(db_metadata.tables);
 }
 
 void execute_statement(PGconn *conn, char *statement)
