@@ -14,6 +14,8 @@
 
 #define PROMPT_TEMPLATE_STR "%s@%s > "
 
+static char *vocabulary[] = {"SELECT", "FROM", "UPDATE", "DELETE", NULL};
+
 struct termios original_tty;
 
 void terminal_disable_echo(void)
@@ -194,23 +196,132 @@ char *highlight(const char *input)
     return buffer;
 }
 
+static char *get_suggestion(const char *text)
+{
+    if (text == NULL || *text == '\0')
+    {
+        return NULL;
+    }
+
+    int len = strlen(text);
+
+    for (int i = 0; vocabulary[i] != NULL; i++)
+    {
+        if (strncasecmp(vocabulary[i], text, len) == 0)
+        {
+            return vocabulary[i] + len;
+        }
+    }
+
+    return NULL;
+}
+
+static int accept_suggestion(int count, int key)
+{
+    char *line = rl_line_buffer;
+    int cursor = rl_point;
+
+    int word_start = cursor;
+    while (word_start > 0 && !isspace(line[word_start - 1]))
+    {
+        word_start--;
+    }
+
+    int word_len = cursor - word_start;
+    char current_word[word_len + 1];
+    strncpy(current_word, line + word_start, word_len);
+    current_word[word_len] = '\0';
+
+    char *suggestion = get_suggestion(current_word);
+
+    if (suggestion != NULL && cursor == (int)strlen(line))
+    {
+        rl_insert_text(suggestion);
+    }
+
+    return 0;
+}
+
 void custom_display(void)
 {
     char *highlighted = highlight(rl_line_buffer);
-    // clear line and redraw
+
+    char *line = rl_line_buffer;
+    int cursor = rl_point;
+
+    int word_start = cursor;
+    while (word_start > 0 && !isspace(line[word_start - 1]))
+    {
+        word_start--;
+    }
+
+    int word_len = cursor - word_start;
+    char current_word[word_len + 1];
+    strncpy(current_word, line + word_start, word_len);
+    current_word[word_len] = '\0';
+
+    char *suggestion = get_suggestion(current_word);
+
     printf("\r\033[K%s%s", rl_prompt, highlighted);
 
-    int cursor_pos = rl_point;
-    int line_len = strlen(rl_line_buffer);
-    if (cursor_pos < line_len)
+    if (suggestion != NULL && cursor == (int)strlen(line))
     {
-        printf("\033[%dD", line_len - cursor_pos);
+        printf("%s%s%s", C_DIM_GRAY, suggestion, C_RESET);
+    }
+
+    int display_cursor = cursor;
+    if (suggestion != NULL && cursor == (int)strlen(line))
+    {
+        int suggestion_len = strlen(suggestion);
+        printf("\033[%dD", suggestion_len);
+    }
+
+    int line_len = strlen(rl_line_buffer);
+    if (display_cursor < line_len)
+    {
+        printf("\033[%dD", line_len - display_cursor);
     }
 
     fflush(stdout);
 }
 
-void init_readline(void) { rl_redisplay_function = custom_display; }
+char *command_generator(const char *text, int state)
+{
+    static int list_index, len;
+    char *name;
+
+    if (!state)
+    {
+        list_index = 0;
+        len = strlen(text);
+    }
+
+    while ((name = vocabulary[list_index++]))
+    {
+        if (strncasecmp(name, text, len) == 0)
+        {
+            return strdup(name);
+        }
+    }
+
+    return NULL;
+}
+
+char **command_completion(const char *text, int start, int end)
+{
+    rl_attempted_completion_over = 1;
+
+    return rl_completion_matches(text, command_generator);
+}
+
+void init_readline(void)
+{
+    rl_redisplay_function = custom_display;
+    rl_attempted_completion_function = command_completion;
+
+    // right arrow
+    rl_bind_keyseq("\\e[C", accept_suggestion);
+}
 
 char *get_readline_prompt(char *dbname, char *host)
 {
