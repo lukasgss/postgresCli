@@ -10,12 +10,11 @@
 #include <termios.h>
 #include <unistd.h>
 
+#include "sql/keywords.h"
 #include "sql/postgres.h"
 #include "ui/terminal.h"
 
 #define PROMPT_TEMPLATE_STR "%s@%s > "
-
-static char *vocabulary[] = {"SELECT", "FROM", "UPDATE", "DELETE", NULL};
 
 struct termios original_tty;
 
@@ -295,6 +294,11 @@ static char *get_suggestion(const char *text)
         {
             if (strncasecmp(vocabulary[i], text, len) == 0)
             {
+                if (islower(*text))
+                {
+                    return lower_vocabulary[i] + len;
+                }
+
                 return vocabulary[i] + len;
             }
         }
@@ -305,7 +309,6 @@ static char *get_suggestion(const char *text)
 
 static int accept_suggestion(int count, int key)
 {
-    // supress warnings
     (void)count;
     (void)key;
 
@@ -407,6 +410,13 @@ char *command_generator(const char *text, int state)
         {
             if (strncasecmp(name, text, len) == 0)
             {
+                if (islower(*text))
+                {
+                    // subtract one because of the previous list_index++ in the
+                    // while loop
+                    return strdup(lower_vocabulary[list_index - 1]);
+                }
+
                 return strdup(name);
             }
         }
@@ -417,7 +427,6 @@ char *command_generator(const char *text, int state)
 
 char **command_completion(const char *text, int start, int end)
 {
-    // supress warnings
     (void)start;
     (void)end;
 

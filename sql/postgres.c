@@ -28,6 +28,7 @@ PGconn *connect_to_db(char *host, char *db, char *user, char *password)
         exit_gracefully(NULL);
     }
 
+    // TODO: make this use malloc instead of default buffer size
     char conn_str[512];
     if (password == NULL)
     {
