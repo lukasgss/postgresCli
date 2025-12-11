@@ -16,7 +16,7 @@ int main(int argc, char **argv)
     PGconn *conn = connect_to_db(
         conn_info.host, conn_info.dbname, conn_info.user, conn_info.password);
 
-    get_db_metadata(conn);
+    fetch_db_metadata(conn);
 
     char *input;
 
