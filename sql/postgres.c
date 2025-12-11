@@ -1,4 +1,5 @@
 #include <bits/time.h>
+#include <stdbool.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -170,14 +171,108 @@ void clear_db_metadata()
     free(db_metadata.tables);
 }
 
+static bool is_text_table_name(const char *text)
+{
+    for (size_t table = 0; table < db_metadata.amount_tables; table++)
+    {
+        size_t table_name_len = strlen(db_metadata.tables[table]);
+
+        for (size_t c = 0; text[c]; c++)
+        {
+            if (c > table_name_len - 1 ||
+                text[c] != db_metadata.tables[table][c])
+            {
+                break;
+            }
+
+            return true;
+        }
+    }
+
+    return false;
+}
+
+static char *add_quotes_table_names(const char *statement)
+{
+    size_t statement_len = strlen(statement);
+
+    char *quoted_statement = malloc(statement_len * 2 + 1);
+    if (!quoted_statement)
+    {
+        return NULL;
+    }
+
+    char *current_word = malloc(statement_len + 1);
+    if (!current_word)
+    {
+        free(quoted_statement);
+        return NULL;
+    }
+
+    size_t curr_word_index = 0;
+    size_t curr_quoted_str_idx = 0;
+
+    for (size_t i = 0; i <= statement_len; i++)
+    {
+        char c = statement[i];
+
+        if (c == ' ' || c == '\0')
+        {
+            current_word[curr_word_index] = '\0';
+
+            if (curr_word_index > 0)
+            {
+                if (is_text_table_name(current_word))
+                {
+                    quoted_statement[curr_quoted_str_idx++] = '"';
+                    for (size_t j = 0; j < curr_word_index; j++)
+                    {
+                        quoted_statement[curr_quoted_str_idx++] =
+                            current_word[j];
+                    }
+                    quoted_statement[curr_quoted_str_idx++] = '"';
+                }
+                else
+                {
+                    for (size_t j = 0; j < curr_word_index; j++)
+                    {
+                        quoted_statement[curr_quoted_str_idx++] =
+                            current_word[j];
+                    }
+                }
+            }
+
+            if (c == ' ')
+            {
+                quoted_statement[curr_quoted_str_idx++] = ' ';
+            }
+
+            curr_word_index = 0;
+        }
+        else
+        {
+            current_word[curr_word_index++] = c;
+        }
+    }
+
+    quoted_statement[curr_quoted_str_idx] = '\0';
+
+    free(current_word);
+    return quoted_statement;
+}
+
 void execute_statement(PGconn *conn, char *statement)
 {
     // can't create a value if not a pointer, since type
     // isn't defined in the header file
     PGresult *result = NULL;
 
+    char *quoted_statement = add_quotes_table_names(statement);
+
     double elapsed_time = measure_statement_exec_time_in_secs(
-        exec_to_db, conn, statement, &result);
+        exec_to_db, conn, quoted_statement, &result);
+
+    free(quoted_statement);
 
     ExecStatusType status = PQresultStatus(result);
     if (status != PGRES_TUPLES_OK && status != PGRES_COMMAND_OK)
