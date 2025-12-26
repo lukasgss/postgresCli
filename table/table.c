@@ -132,19 +132,42 @@ void print_cols_header(
     }
 }
 
+static unsigned int get_null_count(
+    char ***rows, int num_rows, struct cols_data columns_data)
+{
+    unsigned int null_counter = 0;
+    for (int i = 0; i < num_rows; i++)
+    {
+        for (int j = 0; j < columns_data.count; j++)
+        {
+            if (rows[i][j][0] == '\0')
+            {
+                null_counter++;
+            }
+        }
+    }
+
+    return null_counter;
+}
+
 void print_rows(
     char ***rows, int num_rows, struct cols_data columns_data,
     unsigned long total_width)
 {
-    char stack_buf[total_width <= STACK_THRESHOLD ? total_width + 1 : 1];
+    unsigned int null_counter = get_null_count(rows, num_rows, columns_data);
+    size_t buffer_size = total_width + (null_counter * ANSI_OVERHEAD) + 1;
+
+    char stack_buf[buffer_size <= STACK_THRESHOLD ? buffer_size : 1];
     char *line =
-        total_width <= STACK_THRESHOLD ? stack_buf : malloc(total_width + 1);
+        total_width <= STACK_THRESHOLD ? stack_buf : malloc(buffer_size);
 
     char *p = line;
 
     // print contents
     for (int i = 0; i < num_rows; i++)
     {
+        p = line;
+
         for (int j = 0; j < columns_data.count; j++)
         {
             unsigned long width = columns_data.col_widths[j];
@@ -165,8 +188,8 @@ void print_rows(
             // 6 because it's the length of the "<null>" string,
             // the strlen function is not used to improve performance
             // and save a few ms :^)
-            size_t padding = width - SPACING_VALUES_BETWEEN_LINES -
-                             (is_value_empty ? 6 : original_text_len);
+            size_t display_len = is_value_empty ? 6 : original_text_len;
+            size_t padding = width - SPACING_VALUES_BETWEEN_LINES - display_len;
 
             memcpy(p, value_str, text_len);
             p += text_len;

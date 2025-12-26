@@ -14,3 +14,5 @@ char *get_readline_prompt(char *dbname, char *host);
 #define C_FUNCTION "\033[0;33m"       // yellow
 #define C_DIM_GRAY "\e[1;37m"
 #define C_RESET "\001\033[0m\002"
+
+#define ANSI_OVERHEAD 25
