@@ -4,6 +4,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <strings.h>
 #include <sys/cdefs.h>
 #include <time.h>
 
@@ -261,8 +262,19 @@ static char *add_quotes_table_names(const char *statement)
     return quoted_statement;
 }
 
+static bool is_exit_statement(const char *statement)
+{
+    return strcasecmp(statement, "exit") == 0;
+}
+
 void execute_statement(PGconn *conn, char *statement)
 {
+    if (is_exit_statement(statement))
+    {
+        printf("\n");
+        exit(0);
+    }
+
     // can't create a value if not a pointer, since type
     // isn't defined in the header file
     PGresult *result = NULL;
